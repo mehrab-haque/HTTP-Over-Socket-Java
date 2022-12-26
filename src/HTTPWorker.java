@@ -81,14 +81,28 @@ public class HTTPWorker extends Thread {
         return String.valueOf(fileData);
     }
 
-    private String generateHtmlResponse(String htmlContent){
+    private String generateMimeTypeResponse(String mimetype,String htmlContent){
         return "HTTP/1.1 200 OK\r\n"+
                 "Server: Java HTTP Server: 1.0\r\n"+
                 "Date: " + new Date() + "\r\n"+
-                "Content-Type: text/html\r\n"+
+                "Content-Type: "+mimetype+"\r\n"+
                 "Content-Length: " + htmlContent.length() + "\r\n"+
                 "\r\n"+
                 htmlContent;
+    }
+
+    private String generateHtmlResponse(String htmlContent){
+        return generateMimeTypeResponse("text/html",htmlContent);
+    }
+
+    private void sendFileOverHTTP(OutputStream out,File file) throws IOException {
+        out.write("HTTP/1.1 200 OK\r\n".getBytes());
+        out.write("Accept-Ranges: bytes\r\n".getBytes());
+        out.write(("Content-Length: "+file.length()+"\r\n").getBytes());
+        out.write("Content-Type: application/octet-stream\r\n".getBytes());
+        out.write(("Content-Disposition: attachment; filename=\""+file.getName()+"\"\r\n").getBytes());
+        out.write("\r\n".getBytes());
+        Files.copy(Paths.get(file.getAbsolutePath()) , out);
     }
 
     public void run()
@@ -101,10 +115,11 @@ public class HTTPWorker extends Thread {
             if(input.length() > 0) {
                 if(input.startsWith("GET"))
                 {
-                    String route=input.split(" ")[1];
+                    String route=input.split(" ")[1].split("[?]")[0].replaceAll("%20"," ");
                     String path=Paths.get(Paths.get("").toAbsolutePath().toAbsolutePath().toString(),route).toString();
 
                     if(!route.equals("/favicon.ico")){
+                        System.out.println(route);
                         File requestedFile=new File(path);
                         if(requestedFile.exists()){
                             if(requestedFile.isDirectory()){
@@ -137,16 +152,12 @@ public class HTTPWorker extends Thread {
                                     String imageViewerResponse=this.imageViewerContent.replace("{title}",requestedFile.getName()).replace("{src}","data:"+getMimeType(requestedFile)+";base64, "+base64);
                                     pr.write(generateHtmlResponse(imageViewerResponse));
                                     pr.flush();
+                                }else{
+                                    OutputStream out=socket.getOutputStream();
+                                    sendFileOverHTTP(out,requestedFile);
+                                    out.flush();
+                                    out.close();
                                 }
-
-//                                FileInputStream fs=new FileInputStream(path);
-//                                OutputStream out = socket.getOutputStream();
-//                                int reads=0;
-//                                while((reads=fs.read())!=-1)
-//                                {
-//                                    out.write(reads);
-//                                }
-//                                out.close();
                             }
                         }else {
                             PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
