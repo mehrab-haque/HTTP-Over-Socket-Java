@@ -9,11 +9,18 @@ public class HTTPWorker extends Thread {
     Socket socket;
     String notFoundContent;
     String imageViewerContent;
+    String textViewerContent;
+    String folderViewerContent;
+
+    String folderItem="<li><a href=\"{href}\"><b><i>{name}</i></b><a></li>";
+    String fileItem="<li><a href=\"{href}\">{name}</i></li>";
 
     public HTTPWorker(Socket socket) throws IOException {
         this.socket = socket;
         parseNotFoundContent();
         parseImageViewerdContent();
+        parseTextViewerdContent();
+        parseFolderViewerdContent();
     }
 
     private String getMimeType(File file) throws IOException {
@@ -49,6 +56,14 @@ public class HTTPWorker extends Thread {
 
     private void parseImageViewerdContent() throws IOException {
         this.imageViewerContent=parseContent("imageViewer.html");
+    }
+
+    private void parseTextViewerdContent() throws IOException {
+        this.textViewerContent=parseContent("textViewer.html");
+    }
+
+    private void parseFolderViewerdContent() throws IOException {
+        this.folderViewerContent=parseContent("folderViewer.html");
     }
 
     public static String readFileData(File file, int fileLength) throws IOException {
@@ -93,13 +108,27 @@ public class HTTPWorker extends Thread {
                         File requestedFile=new File(path);
                         if(requestedFile.exists()){
                             if(requestedFile.isDirectory()){
+                                PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
+                                String itemsString="";
+                                for (File file:requestedFile.listFiles()){
+                                    String childRoute=(route+"/"+file.getName()).replaceAll("//","/");
+                                    if(file.isDirectory())
+                                        itemsString+=folderItem.replace("{name}",file.getName()).replace("{href}",childRoute)+"\n";
+                                    else
+                                        itemsString+=fileItem.replace("{name}",file.getName()).replace("{href}",childRoute)+"\n";
 
+                                }
+                                String folderViewerResponse=this.folderViewerContent.replace("{title}",requestedFile.getName()).replace("{items}",itemsString);
+                                pr.write(generateHtmlResponse(folderViewerResponse));
+                                pr.flush();
                             }else{
                                 if(isTextFile(requestedFile)){
-                                    System.out.println("hi");
+                                    PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
+                                    String textViewerResponse=this.textViewerContent.replace("{title}",requestedFile.getName()).replace("{src}",parseContent(path));
+                                    pr.write(generateHtmlResponse(textViewerResponse));
+                                    pr.flush();
                                 }
                                 else if(isImageFile(requestedFile)){
-                                    System.out.println(getMimeType(requestedFile));
                                     FileInputStream fin = new FileInputStream(requestedFile);
                                     byte imagebytearray[] = new byte[(int)requestedFile.length()];
                                     fin.read(imagebytearray);
