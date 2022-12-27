@@ -5,12 +5,13 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Date;
 
-public class HTTPWorker extends Thread {
+public class HTTPWorker implements Runnable {
     Socket socket;
     String notFoundContent;
     String imageViewerContent;
     String textViewerContent;
     String folderViewerContent;
+    int CHUNK_SIZE_BYTES=1;
 
     String folderItem="<li><a href=\"{href}\"><b><i>{name}</i></b><a></li>";
     String fileItem="<li><a href=\"{href}\">{name}</i></li>";
@@ -30,11 +31,6 @@ public class HTTPWorker extends Thread {
     private boolean isImageFile(File src) throws IOException {
         String mimetype = getMimeType(src);
         return mimetype != null && mimetype.split("/")[0].equals("image");
-    }
-
-    private boolean isTextFile(File src) throws IOException {
-        String mimetype = getMimeType(src);
-        return mimetype != null && mimetype.split("/")[0].equals("text");
     }
 
     private String parseContent(String fileName) throws IOException{
@@ -95,6 +91,13 @@ public class HTTPWorker extends Thread {
         return generateMimeTypeResponse("text/html",htmlContent);
     }
 
+    private byte[] getChunk(byte[] bytes,int startIndex,int length){
+        byte[] chunk=new byte[length];
+        for(int i=0;i<length;i++)
+            chunk[i]=bytes[startIndex+i];
+        return chunk;
+    }
+
     private void sendFileOverHTTP(OutputStream out,File file) throws IOException {
         out.write("HTTP/1.1 200 OK\r\n".getBytes());
         out.write("Accept-Ranges: bytes\r\n".getBytes());
@@ -102,11 +105,22 @@ public class HTTPWorker extends Thread {
         out.write("Content-Type: application/octet-stream\r\n".getBytes());
         out.write(("Content-Disposition: attachment; filename=\""+file.getName()+"\"\r\n").getBytes());
         out.write("\r\n".getBytes());
-        Files.copy(Paths.get(file.getAbsolutePath()) , out);
+        FileInputStream fis=new FileInputStream(file);
+        byte[] bytes=fis.readAllBytes();
+        try{
+            for(int i=0;i*CHUNK_SIZE_BYTES+CHUNK_SIZE_BYTES<=bytes.length;i++)
+                out.write(getChunk(bytes,i*CHUNK_SIZE_BYTES,CHUNK_SIZE_BYTES));
+            out.write(getChunk(bytes,((int)(bytes.length/CHUNK_SIZE_BYTES))*CHUNK_SIZE_BYTES,bytes.length%CHUNK_SIZE_BYTES));
+        }catch (IOException e){
+            System.out.println("Download is aborted by client...");
+        }
+        out.flush();
+        out.close();
+        fis.close();
     }
 
-    public void run()
-    {
+    @Override
+    public void run() {
         try {
             BufferedReader in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
             String input = in.readLine();
@@ -119,7 +133,6 @@ public class HTTPWorker extends Thread {
                     String path=Paths.get(Paths.get("").toAbsolutePath().toAbsolutePath().toString(),route).toString();
 
                     if(!route.equals("/favicon.ico")){
-                        System.out.println(route);
                         File requestedFile=new File(path);
                         if(requestedFile.exists()){
                             if(requestedFile.isDirectory()){
@@ -137,7 +150,7 @@ public class HTTPWorker extends Thread {
                                 pr.write(generateHtmlResponse(folderViewerResponse));
                                 pr.flush();
                             }else{
-                                if(isTextFile(requestedFile)){
+                                if(requestedFile.getName().endsWith(".txt")){
                                     PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
                                     String textViewerResponse=this.textViewerContent.replace("{title}",requestedFile.getName()).replace("{src}",parseContent(path));
                                     pr.write(generateHtmlResponse(textViewerResponse));
@@ -163,7 +176,7 @@ public class HTTPWorker extends Thread {
                             PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
                             pr.write(generateHtmlResponse(notFoundContent));
                             pr.flush();
-                            //System.out.println(input+" 404 : Page Not Found");
+                            System.out.println(input+" 404 : Page Not Found");
                         }
                     }
                 }
@@ -177,6 +190,5 @@ public class HTTPWorker extends Thread {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 }

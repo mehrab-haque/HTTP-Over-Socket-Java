@@ -14,7 +14,8 @@ public class HTTPServerSkeleton {
         {
             Socket s = serverConnect.accept();
             HTTPWorker worker=new HTTPWorker(s);
-            worker.run();
+            new Thread(worker).start();
+            System.out.println("hi");
         }
     }
     
