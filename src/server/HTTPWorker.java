@@ -1,3 +1,5 @@
+package server;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -14,7 +16,7 @@ public class HTTPWorker implements Runnable {
     int CHUNK_SIZE_BYTES=1;
 
     String folderItem="<li><a href=\"{href}\"><b><i>{name}</i></b><a></li>";
-    String fileItem="<li><a href=\"{href}\">{name}</i></li>";
+    String fileItem="<li><a href=\"{href}\" target=\"_blank\">{name}</i></li>";
 
     public HTTPWorker(Socket socket) throws IOException {
         this.socket = socket;
@@ -77,8 +79,8 @@ public class HTTPWorker implements Runnable {
         return String.valueOf(fileData);
     }
 
-    private String generateMimeTypeResponse(String mimetype,String htmlContent){
-        return "HTTP/1.1 200 OK\r\n"+
+    private String generateMimeTypeResponse(String mimetype,String htmlContent,int responseCode){
+        return "HTTP/1.1 "+responseCode+" OK\r\n"+
                 "Server: Java HTTP Server: 1.0\r\n"+
                 "Date: " + new Date() + "\r\n"+
                 "Content-Type: "+mimetype+"\r\n"+
@@ -88,7 +90,11 @@ public class HTTPWorker implements Runnable {
     }
 
     private String generateHtmlResponse(String htmlContent){
-        return generateMimeTypeResponse("text/html",htmlContent);
+        return generateMimeTypeResponse("text/html",htmlContent,200);
+    }
+
+    private String generateHtmlResponseNotFound(String htmlContent){
+        return generateMimeTypeResponse("text/html",htmlContent,404);
     }
 
     private byte[] getChunk(byte[] bytes,int startIndex,int length){
@@ -133,6 +139,7 @@ public class HTTPWorker implements Runnable {
                     String path=Paths.get(Paths.get("").toAbsolutePath().toAbsolutePath().toString(),route).toString();
 
                     if(!route.equals("/favicon.ico")){
+                        System.out.println(input);
                         File requestedFile=new File(path);
                         if(requestedFile.exists()){
                             if(requestedFile.isDirectory()){
@@ -174,16 +181,16 @@ public class HTTPWorker implements Runnable {
                             }
                         }else {
                             PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
-                            pr.write(generateHtmlResponse(notFoundContent));
+                            pr.write(generateHtmlResponseNotFound(notFoundContent));
                             pr.flush();
                             System.out.println(input+" 404 : Page Not Found");
                         }
                     }
                 }
 
-                else
+                else if(input.startsWith("FTP"))
                 {
-
+                    System.out.println("FTP");
                 }
             }
             this.socket.close();

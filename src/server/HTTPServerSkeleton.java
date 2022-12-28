@@ -1,7 +1,8 @@
+package server;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Date;
 
 public class HTTPServerSkeleton {
     static final int PORT = 5001;
@@ -15,7 +16,6 @@ public class HTTPServerSkeleton {
             Socket s = serverConnect.accept();
             HTTPWorker worker=new HTTPWorker(s);
             new Thread(worker).start();
-            System.out.println("hi");
         }
     }
     
