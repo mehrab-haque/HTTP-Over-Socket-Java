@@ -1,0 +1,7 @@
+GET /Offline%201.iml HTTP/1.1
+
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Content-Length: 433
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="Offline 1.iml"

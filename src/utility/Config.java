@@ -3,8 +3,10 @@ package utility;
 public class Config {
     public static final String SERVER_URL="localhost";
     public static final int SERVER_PORT=5001;
-    public static final int CHUNK_SIZE_BYTES=4*1024;
+    public static final int CHUNK_SIZE_BYTES=2;
+    public static final String UPLOADING_PROGRESS_MSG="Uploading in progress...";
     public static final String UPLOAD_FOLDER_NAME="uploaded";
+    public static final String LOG_FOLDER_NAME="logs";
     public static final String NOT_FOUND_HTML="404.html";
     public static final String IMAGE_VIEWER_HTML="imageViewer.html";
     public static final String TEXT_VIEWER_HTML="textViewer.html";

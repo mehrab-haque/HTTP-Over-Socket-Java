@@ -1,0 +1,40 @@
+GET / HTTP/1.1
+
+HTTP/1.1 200 OK
+Server: Java HTTP Server: 1.0
+Date: Thu Dec 29 00:19:20 BDT 2022
+Content-Type: text/html
+Content-Length: 1095
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Offline 1</title>
+    <style>
+        a{
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <ul>
+        <li><a href="/.git"><b><i>.git</i></b><a></li>
+<li><a href="/.idea"><b><i>.idea</i></b><a></li>
+<li><a href="/404.html" target="_blank">404.html</i></li>
+<li><a href="/assets"><b><i>assets</i></b><a></li>
+<li><a href="/clientAssets"><b><i>clientAssets</i></b><a></li>
+<li><a href="/folderViewer.html" target="_blank">folderViewer.html</i></li>
+<li><a href="/imageViewer.html" target="_blank">imageViewer.html</i></li>
+<li><a href="/index.html" target="_blank">index.html</i></li>
+<li><a href="/logs"><b><i>logs</i></b><a></li>
+<li><a href="/Offline 1.iml" target="_blank">Offline 1.iml</i></li>
+<li><a href="/out"><b><i>out</i></b><a></li>
+<li><a href="/root"><b><i>root</i></b><a></li>
+<li><a href="/src"><b><i>src</i></b><a></li>
+<li><a href="/textViewer.html" target="_blank">textViewer.html</i></li>
+<li><a href="/uploaded"><b><i>uploaded</i></b><a></li>
+
+    </ul>
+</body>
+</html>

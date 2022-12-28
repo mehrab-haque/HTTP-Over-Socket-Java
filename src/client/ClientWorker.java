@@ -7,13 +7,16 @@ import java.io.*;
 import java.net.Socket;
 import java.nio.file.Paths;
 
+import static utility.Config.CHUNK_SIZE_BYTES;
+import static utility.Utils.getChunk;
+
 public class ClientWorker implements Runnable {
 
     Socket socket;
     String fileName;
 
     public ClientWorker(String fileName){
-        this.fileName=fileName;
+        this.fileName=fileName.replaceAll("%20"," ");
     }
 
     @Override
@@ -43,16 +46,16 @@ public class ClientWorker implements Runnable {
                 if(input.equals(Config.CLIENT_UPLOAD_READY)){
                     DataOutputStream dataOutputStream = new DataOutputStream(
                             socket.getOutputStream());
-                    int bytes = 0;
                     FileInputStream fileInputStream
                             = new FileInputStream(file);
                     dataOutputStream.writeLong(file.length());
-                    byte[] buffer = new byte[Config.CHUNK_SIZE_BYTES];
-                    while ((bytes = fileInputStream.read(buffer))
-                            != -1) {
-                        dataOutputStream.write(buffer, 0, bytes);
-                        dataOutputStream.flush();
+                    byte[] bytes=fileInputStream.readAllBytes();
+                    for(int i=0;i*CHUNK_SIZE_BYTES+CHUNK_SIZE_BYTES<=bytes.length;i++) {
+                        dataOutputStream.write(getChunk(bytes, i * CHUNK_SIZE_BYTES, CHUNK_SIZE_BYTES));
+                        System.out.print(fileName+" : " + Config.UPLOADING_PROGRESS_MSG+" "+Integer.parseInt((i*100/(bytes.length/CHUNK_SIZE_BYTES))+"") + "%\r");
+                        System.out.flush();
                     }
+                    dataOutputStream.write(getChunk(bytes,((int)(bytes.length/CHUNK_SIZE_BYTES))*CHUNK_SIZE_BYTES,bytes.length%CHUNK_SIZE_BYTES));
                     fileInputStream.close();
                     System.out.println(Config.ANSI_GREEN_BACKGROUND+Config.CLIENT_SUCCESS_MSG+" : "+fileName);
                 }

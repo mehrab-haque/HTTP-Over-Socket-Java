@@ -8,9 +8,11 @@ import java.net.Socket;
 import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Date;
+import java.util.UUID;
 
 import static utility.Config.CHUNK_SIZE_BYTES;
 import static utility.Config.MSG_INVALID_UPLOAD;
+import static utility.Utils.getChunk;
 
 public class HTTPWorker implements Runnable {
     Socket socket;
@@ -93,14 +95,7 @@ public class HTTPWorker implements Runnable {
         return generateMimeTypeResponse("text/html",htmlContent,404);
     }
 
-    private byte[] getChunk(byte[] bytes,int startIndex,int length){
-        byte[] chunk=new byte[length];
-        for(int i=0;i<length;i++)
-            chunk[i]=bytes[startIndex+i];
-        return chunk;
-    }
-
-    private void sendFileOverHTTP(OutputStream out,File file) throws IOException {
+    private void sendFileOverHTTP(OutputStream out,File file,FileWriter logWriter) throws IOException {
         out.write("HTTP/1.1 200 OK\r\n".getBytes());
         out.write("Accept-Ranges: bytes\r\n".getBytes());
         out.write(("Content-Length: "+file.length()+"\r\n").getBytes());
@@ -119,6 +114,7 @@ public class HTTPWorker implements Runnable {
         out.flush();
         out.close();
         fis.close();
+        logWriter.write("HTTP/1.1 200 OK\r\n"+"Accept-Ranges: bytes\r\n"+"Content-Length: "+file.length()+"\r\n"+"Content-Type: application/octet-stream\r\n"+"Content-Disposition: attachment; filename=\""+file.getName()+"\"\r\n");
     }
 
     @Override
@@ -132,9 +128,14 @@ public class HTTPWorker implements Runnable {
                 if(input.startsWith("GET"))
                 {
                     String route=input.split(" ")[1].split("[?]")[0].replaceAll("%20"," ");
-                    String path=Paths.get(Paths.get("").toAbsolutePath().toAbsolutePath().toString(),route).toString();
+                    String path=Paths.get(Paths.get("").toAbsolutePath().toString(),route).toString();
 
                     if(!route.equals("/favicon.ico")){
+                        UUID uuid=UUID.randomUUID();
+                        FileWriter logWriter=new FileWriter(Paths.get(Paths.get("").toString(),Config.LOG_FOLDER_NAME,uuid.toString()+".txt").toString());
+                        logWriter.write(input+"\n\n");
+
+
                         System.out.println(input);
                         File requestedFile=new File(path);
                         if(requestedFile.exists()){
@@ -151,12 +152,14 @@ public class HTTPWorker implements Runnable {
                                 }
                                 String folderViewerResponse=this.folderViewerContent.replace("{title}",requestedFile.getName()).replace("{items}",itemsString);
                                 pr.write(generateHtmlResponse(folderViewerResponse));
+                                logWriter.write(generateHtmlResponse(folderViewerResponse));
                                 pr.flush();
                             }else{
                                 if(requestedFile.getName().endsWith(".txt")){
                                     PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
                                     String textViewerResponse=this.textViewerContent.replace("{title}",requestedFile.getName()).replace("{src}",parseContent(path));
                                     pr.write(generateHtmlResponse(textViewerResponse));
+                                    logWriter.write(generateHtmlResponse(textViewerResponse));
                                     pr.flush();
                                 }
                                 else if(Utils.isImageFile(requestedFile)){
@@ -167,10 +170,11 @@ public class HTTPWorker implements Runnable {
                                     PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
                                     String imageViewerResponse=this.imageViewerContent.replace("{title}",requestedFile.getName()).replace("{src}","data:"+Utils.getMimeType(requestedFile)+";base64, "+base64);
                                     pr.write(generateHtmlResponse(imageViewerResponse));
+                                    logWriter.write(generateHtmlResponse(imageViewerResponse));
                                     pr.flush();
                                 }else{
                                     OutputStream out=socket.getOutputStream();
-                                    sendFileOverHTTP(out,requestedFile);
+                                    sendFileOverHTTP(out,requestedFile,logWriter);
                                     out.flush();
                                     out.close();
                                 }
@@ -178,9 +182,11 @@ public class HTTPWorker implements Runnable {
                         }else {
                             PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
                             pr.write(generateHtmlResponseNotFound(notFoundContent));
+                            logWriter.write(generateHtmlResponse(notFoundContent));
                             pr.flush();
                             System.out.println(input+" "+Config.MSG_NOT_FOUND);
                         }
+                        logWriter.close();
                     }
                 }
 
