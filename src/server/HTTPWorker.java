@@ -1,6 +1,7 @@
 package server;
 
-import Utility.Utils;
+import utility.Config;
+import utility.Utils;
 
 import java.io.*;
 import java.net.Socket;
@@ -8,13 +9,16 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Date;
 
+import static utility.Config.CHUNK_SIZE_BYTES;
+import static utility.Config.MSG_INVALID_UPLOAD;
+
 public class HTTPWorker implements Runnable {
     Socket socket;
     String notFoundContent;
     String imageViewerContent;
     String textViewerContent;
     String folderViewerContent;
-    int CHUNK_SIZE_BYTES=1;
+
 
     String folderItem="<li><a href=\"{href}\"><b><i>{name}</i></b><a></li>";
     String fileItem="<li><a href=\"{href}\" target=\"_blank\">{name}</i></li>";
@@ -41,19 +45,19 @@ public class HTTPWorker implements Runnable {
     }
 
     private void parseNotFoundContent() throws IOException {
-        this.notFoundContent=parseContent("404.html");
+        this.notFoundContent=parseContent(Config.NOT_FOUND_HTML);
     }
 
     private void parseImageViewerdContent() throws IOException {
-        this.imageViewerContent=parseContent("imageViewer.html");
+        this.imageViewerContent=parseContent(Config.IMAGE_VIEWER_HTML);
     }
 
     private void parseTextViewerdContent() throws IOException {
-        this.textViewerContent=parseContent("textViewer.html");
+        this.textViewerContent=parseContent(Config.TEXT_VIEWER_HTML);
     }
 
     private void parseFolderViewerdContent() throws IOException {
-        this.folderViewerContent=parseContent("folderViewer.html");
+        this.folderViewerContent=parseContent(Config.FOLDER_VIEWER_HTML);
     }
 
     public static String readFileData(File file, int fileLength) throws IOException {
@@ -110,7 +114,7 @@ public class HTTPWorker implements Runnable {
                 out.write(getChunk(bytes,i*CHUNK_SIZE_BYTES,CHUNK_SIZE_BYTES));
             out.write(getChunk(bytes,((int)(bytes.length/CHUNK_SIZE_BYTES))*CHUNK_SIZE_BYTES,bytes.length%CHUNK_SIZE_BYTES));
         }catch (IOException e){
-            System.out.println("Download is aborted by client...");
+            System.out.println(Config.MSG_DOWNLOAD_ABORTED);
         }
         out.flush();
         out.close();
@@ -175,34 +179,34 @@ public class HTTPWorker implements Runnable {
                             PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
                             pr.write(generateHtmlResponseNotFound(notFoundContent));
                             pr.flush();
-                            System.out.println(input+" 404 : Page Not Found");
+                            System.out.println(input+" "+Config.MSG_NOT_FOUND);
                         }
                     }
                 }
 
-                else if(input.startsWith("UPLOAD"))
+                else if(input.startsWith(Config.CLIENT_UPLOAD_COMMAND))
                 {
-                    if(input.startsWith("UPLOAD NONEXIST") || input.startsWith("UPLOAD UNSUPPORTED"))
-                        System.out.println("Invalid Upload Request : "+input);
+                    if(input.startsWith(Config.CLIENT_UPLOAD_COMMAND+" "+Config.CLIENT_UPLOAD_NONEXIST) || input.startsWith(Config.CLIENT_UPLOAD_COMMAND+" "+Config.CLIENT_UPLOAD_UNSUPPORTED))
+                        System.out.println(MSG_INVALID_UPLOAD+" : "+input);
                     else{
                         DataInputStream dataInputStream = new DataInputStream(
                                 socket.getInputStream());
                         while (dataInputStream.available()>0)
                             dataInputStream.read();
                         BufferedWriter bufferedWriter=new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
-                        bufferedWriter.write("READY");
+                        bufferedWriter.write(Config.CLIENT_UPLOAD_READY);
                         bufferedWriter.newLine();
                         bufferedWriter.flush();
 
                         int bytes = 0;
-                        String fileName=input.substring(7);
-                        String path= Paths.get(Paths.get("").toAbsolutePath().toAbsolutePath().toString(),"uploaded",fileName).toString();
+                        String fileName=input.substring(Config.CLIENT_UPLOAD_COMMAND.length()+1);
+                        String path= Paths.get(Paths.get("").toAbsolutePath().toAbsolutePath().toString(),Config.UPLOAD_FOLDER_NAME,fileName).toString();
                         FileOutputStream fileOutputStream
                                 = new FileOutputStream(path);
 
                         long size
                                 = dataInputStream.readLong();
-                        byte[] buffer = new byte[4 * 1024];
+                        byte[] buffer = new byte[CHUNK_SIZE_BYTES];
                         while (size > 0
                                 && (bytes = dataInputStream.read(
                                 buffer, 0,

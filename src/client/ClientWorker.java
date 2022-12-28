@@ -1,7 +1,7 @@
 package client;
 
-import Utility.Config;
-import Utility.Utils;
+import utility.Config;
+import utility.Utils;
 
 import java.io.*;
 import java.net.Socket;
@@ -25,11 +25,11 @@ public class ClientWorker implements Runnable {
             String msg="";
             boolean error=true;
             if(!file.exists())
-                msg="UPLOAD NONEXIST "+fileName;
+                msg=Config.CLIENT_UPLOAD_COMMAND+" "+Config.CLIENT_UPLOAD_NONEXIST+" "+fileName;
             else if(!(Utils.isImageFile(file) || fileName.endsWith(".txt")))
-                msg="UPLOAD UNSUPPORTED "+fileName;
+                msg=Config.CLIENT_UPLOAD_COMMAND+" "+Config.CLIENT_UPLOAD_UNSUPPORTED+" "+fileName;
             else {
-                msg="UPLOAD "+fileName;
+                msg=Config.CLIENT_UPLOAD_COMMAND+" "+fileName;
                 error=false;
             }
             socket=new Socket(Config.SERVER_URL,Config.SERVER_PORT);
@@ -40,24 +40,24 @@ public class ClientWorker implements Runnable {
             if(!error){
                 BufferedReader in = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
                 String input = in.readLine();
-                if(input.equals("READY")){
+                if(input.equals(Config.CLIENT_UPLOAD_READY)){
                     DataOutputStream dataOutputStream = new DataOutputStream(
                             socket.getOutputStream());
                     int bytes = 0;
                     FileInputStream fileInputStream
                             = new FileInputStream(file);
                     dataOutputStream.writeLong(file.length());
-                    byte[] buffer = new byte[4 * 1024];
+                    byte[] buffer = new byte[Config.CHUNK_SIZE_BYTES];
                     while ((bytes = fileInputStream.read(buffer))
                             != -1) {
                         dataOutputStream.write(buffer, 0, bytes);
                         dataOutputStream.flush();
                     }
                     fileInputStream.close();
-                    System.out.println(Config.ANSI_GREEN_BACKGROUND+"Upload Completed : "+fileName);
+                    System.out.println(Config.ANSI_GREEN_BACKGROUND+Config.CLIENT_SUCCESS_MSG+" : "+fileName);
                 }
             }else{
-                System.out.println(Config.ANSI_RED_BACKGROUND+"Invalid Upload Request : "+fileName);
+                System.out.println(Config.ANSI_RED_BACKGROUND+Config.CLIENT_ERROR_MSG+" : "+fileName);
             }
             socket.close();
 
