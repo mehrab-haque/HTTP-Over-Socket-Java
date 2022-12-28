@@ -1,8 +1,9 @@
 package server;
 
+import Utility.Utils;
+
 import java.io.*;
 import java.net.Socket;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Date;
@@ -24,15 +25,6 @@ public class HTTPWorker implements Runnable {
         parseImageViewerdContent();
         parseTextViewerdContent();
         parseFolderViewerdContent();
-    }
-
-    private String getMimeType(File file) throws IOException {
-        return Files.probeContentType(file.toPath());
-    }
-
-    private boolean isImageFile(File src) throws IOException {
-        String mimetype = getMimeType(src);
-        return mimetype != null && mimetype.split("/")[0].equals("image");
     }
 
     private String parseContent(String fileName) throws IOException{
@@ -163,13 +155,13 @@ public class HTTPWorker implements Runnable {
                                     pr.write(generateHtmlResponse(textViewerResponse));
                                     pr.flush();
                                 }
-                                else if(isImageFile(requestedFile)){
+                                else if(Utils.isImageFile(requestedFile)){
                                     FileInputStream fin = new FileInputStream(requestedFile);
                                     byte imagebytearray[] = new byte[(int)requestedFile.length()];
                                     fin.read(imagebytearray);
                                     String base64 = Base64.getEncoder().encodeToString(imagebytearray);
                                     PrintWriter pr = new PrintWriter(this.socket.getOutputStream());
-                                    String imageViewerResponse=this.imageViewerContent.replace("{title}",requestedFile.getName()).replace("{src}","data:"+getMimeType(requestedFile)+";base64, "+base64);
+                                    String imageViewerResponse=this.imageViewerContent.replace("{title}",requestedFile.getName()).replace("{src}","data:"+Utils.getMimeType(requestedFile)+";base64, "+base64);
                                     pr.write(generateHtmlResponse(imageViewerResponse));
                                     pr.flush();
                                 }else{
@@ -188,9 +180,40 @@ public class HTTPWorker implements Runnable {
                     }
                 }
 
-                else if(input.startsWith("FTP"))
+                else if(input.startsWith("UPLOAD"))
                 {
-                    System.out.println("FTP");
+                    if(input.startsWith("UPLOAD NONEXIST") || input.startsWith("UPLOAD UNSUPPORTED"))
+                        System.out.println("Invalid Upload Request : "+input);
+                    else{
+                        DataInputStream dataInputStream = new DataInputStream(
+                                socket.getInputStream());
+                        while (dataInputStream.available()>0)
+                            dataInputStream.read();
+                        BufferedWriter bufferedWriter=new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+                        bufferedWriter.write("READY");
+                        bufferedWriter.newLine();
+                        bufferedWriter.flush();
+
+                        int bytes = 0;
+                        String fileName=input.substring(7);
+                        String path= Paths.get(Paths.get("").toAbsolutePath().toAbsolutePath().toString(),"uploaded",fileName).toString();
+                        FileOutputStream fileOutputStream
+                                = new FileOutputStream(path);
+
+                        long size
+                                = dataInputStream.readLong();
+                        byte[] buffer = new byte[4 * 1024];
+                        while (size > 0
+                                && (bytes = dataInputStream.read(
+                                buffer, 0,
+                                (int)Math.min(buffer.length, size)))
+                                != -1) {
+                            fileOutputStream.write(buffer, 0, bytes);
+                            size -= bytes;
+                        }
+                        fileOutputStream.close();
+                    }
+
                 }
             }
             this.socket.close();
